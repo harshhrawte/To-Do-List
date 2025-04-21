@@ -2,58 +2,57 @@ pipeline {
     agent any
 
     environment {
-        DOCKERHUB_CREDENTIALS = 'docker-hub-cred'     // Replace with your Jenkins credentials ID
-        IMAGE_NAME = 'harshrawte/todo-app'            // Your DockerHub image name
-        TAG = "latest"                                // Image tag (can use Git SHA for dynamic tagging too)
+        DOCKERHUB_CREDENTIALS = 'docker-hub-cred'       // Replace with your actual Jenkins DockerHub credential ID
+        IMAGE_NAME = 'harshrawte/todo-app'              // Your DockerHub repo
+        TAG = "latest"                                  // Can be dynamic with env.BUILD_NUMBER or Git commit hash
+        CONTAINER_NAME = 'todo-flask-container'
     }
 
     stages {
 
         stage('Clone Repository') {
             steps {
-                echo '🔄 Cloning repository...'
+                echo '🔄 Cloning repo...'
                 git branch: 'main', url: 'https://github.com/harshhrawte/To-Do-List.git'
-            }
-        }
-
-        stage('List Project Files') {
-            steps {
-                echo '📂 Listing project files to verify Dockerfile...'
-                bat "dir" // For Windows agent
-                // For Linux agents, use: sh 'ls -la'
             }
         }
 
         stage('Build Docker Image') {
             steps {
-                script {
-                    echo '📦 Building Docker image...'
-                    bat "docker build -t ${IMAGE_NAME}:${TAG} ."
+                echo '🐳 Building Docker image...'
+                sh 'docker build -t $IMAGE_NAME:$TAG .'
+            }
+        }
+
+        stage('Push to Docker Hub') {
+            steps {
+                echo '📤 Logging in and pushing to DockerHub...'
+                withCredentials([usernamePassword(credentialsId: "${DOCKERHUB_CREDENTIALS}", usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
+                    sh '''
+                        echo "$PASSWORD" | docker login -u "$USERNAME" --password-stdin
+                        docker push $IMAGE_NAME:$TAG
+                    '''
                 }
             }
         }
 
-        stage('Login & Push to DockerHub') {
+        stage('Deploy on Docker Host') {
             steps {
-                script {
-                    withCredentials([usernamePassword(credentialsId: "${DOCKERHUB_CREDENTIALS}", usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
-                        echo '🔐 Logging into DockerHub...'
-                        bat "echo %PASSWORD% | docker login -u %USERNAME% --password-stdin"
-                        
-                        echo '📤 Pushing Docker image to DockerHub...'
-                        bat "docker push ${IMAGE_NAME}:${TAG}"
-                    }
-                }
+                echo '🚀 Deploying container on Docker Host...'
+                sh '''
+                    docker rm -f $CONTAINER_NAME || true
+                    docker run -d -p 5000:5000 --name $CONTAINER_NAME $IMAGE_NAME:$TAG
+                '''
             }
         }
     }
 
     post {
         success {
-            echo '✅ Docker image built and pushed successfully!'
+            echo '✅ Deployment successful!'
         }
         failure {
-            echo '❌ Pipeline failed. Please check the logs above.'
+            echo '❌ Something went wrong. Check logs.'
         }
     }
 }
