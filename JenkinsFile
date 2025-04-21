@@ -1,0 +1,59 @@
+pipeline {
+    agent any
+
+    environment {
+        DOCKERHUB_CREDENTIALS = 'docker-hub-cred'     // Replace with your Jenkins credentials ID
+        IMAGE_NAME = 'harshrawte/todo-app'            // Your DockerHub image name
+        TAG = "latest"                                // Image tag (can use Git SHA for dynamic tagging too)
+    }
+
+    stages {
+
+        stage('Clone Repository') {
+            steps {
+                echo '🔄 Cloning repository...'
+                git branch: 'main', url: 'https://github.com/harshhrawte/To-Do-List.git'
+            }
+        }
+
+        stage('List Project Files') {
+            steps {
+                echo '📂 Listing project files to verify Dockerfile...'
+                bat "dir" // For Windows agent
+                // For Linux agents, use: sh 'ls -la'
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                script {
+                    echo '📦 Building Docker image...'
+                    bat "docker build -t ${IMAGE_NAME}:${TAG} ."
+                }
+            }
+        }
+
+        stage('Login & Push to DockerHub') {
+            steps {
+                script {
+                    withCredentials([usernamePassword(credentialsId: "${DOCKERHUB_CREDENTIALS}", usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
+                        echo '🔐 Logging into DockerHub...'
+                        bat "echo %PASSWORD% | docker login -u %USERNAME% --password-stdin"
+                        
+                        echo '📤 Pushing Docker image to DockerHub...'
+                        bat "docker push ${IMAGE_NAME}:${TAG}"
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo '✅ Docker image built and pushed successfully!'
+        }
+        failure {
+            echo '❌ Pipeline failed. Please check the logs above.'
+        }
+    }
+}
