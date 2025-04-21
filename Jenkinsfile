@@ -1,54 +1,45 @@
 pipeline {
     agent any
-
     environment {
-        IMAGE_NAME = 'harshrawte/todo-list'
-        IMAGE_TAG = 'latest'
-        DOCKER_HUB_CREDENTIALS = 'docker-hub-creds' // ID of credentials in Jenkins
+        IMAGE_NAME = "harshrawte/todo-list-app"
+        IMAGE_TAG = "v1"
     }
 
     stages {
         stage('Clone Repository') {
             steps {
                 echo '🔄 Cloning repo...'
-                git 'https://github.com/harshhrawte/To-Do-List.git'
+                withCredentials([usernamePassword(credentialsId: 'github-credentials-id', usernameVariable: 'GIT_USER', passwordVariable: 'GIT_PASS')]) {
+                    git branch: 'main', url: 'https://github.com/harshhrawte/To-Do-List.git', credentialsId: 'github-credentials-id'
+                }
             }
         }
 
         stage('Build Docker Image') {
             steps {
                 echo '🐳 Building Docker image...'
-                bat 'docker build -t %IMAGE_NAME%:%IMAGE_TAG% .'
-            }
-        }
-
-        stage('Push to Docker Hub') {
-            steps {
-                echo '📤 Pushing image to Docker Hub...'
-                withCredentials([usernamePassword(credentialsId: "${DOCKER_HUB_CREDENTIALS}", passwordVariable: 'DOCKER_PASSWORD', usernameVariable: 'DOCKER_USERNAME')]) {
-                    bat '''
-                    docker login -u %DOCKER_USERNAME% -p %DOCKER_PASSWORD%
-                    docker push %IMAGE_NAME%:%IMAGE_TAG%
-                    '''
+                script {
+                    sh 'docker build -t $IMAGE_NAME:$IMAGE_TAG .'
                 }
             }
         }
 
-        stage('Deploy on Docker Host') {
+        stage('Save Docker Image as .tar') {
             steps {
-                echo '🚀 Deploying Docker container...'
-                bat '''
-                docker stop todo-app || echo "Container not running"
-                docker rm todo-app || echo "Container not existing"
-                docker run -d -p 5000:5000 --name todo-app %IMAGE_NAME%:%IMAGE_TAG%
-                '''
+                echo '📦 Saving Docker image to todo-list.tar...'
+                script {
+                    sh 'docker save -o todo-list.tar $IMAGE_NAME:$IMAGE_TAG'
+                }
             }
         }
     }
 
     post {
         failure {
-            echo '❌ Something went wrong. Check logs.'
+            echo "❌ Something went wrong. Check logs."
+        }
+        success {
+            echo "✅ Pipeline completed successfully!"
         }
     }
 }
