@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        DOCKERHUB_CREDENTIALS = 'docker-hub-cred'       // Replace with your actual Jenkins DockerHub credential ID
+        DOCKERHUB_CREDENTIALS = 'docker-hub-cred'       // Replace with your actual Jenkins DockerHub credential ID 1
         IMAGE_NAME = 'harshrawte/todo-app'              // Your DockerHub repo
         TAG = "latest"                                  // Can be dynamic with env.BUILD_NUMBER or Git commit hash
         CONTAINER_NAME = 'todo-flask-container'
