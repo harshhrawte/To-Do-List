@@ -2,35 +2,33 @@ pipeline {
     agent any
 
     environment {
-        DOCKERHUB_CREDENTIALS = 'docker-hub-cred'       // Replace with your actual Jenkins DockerHub credential ID
-        IMAGE_NAME = 'harshrawte/todo-app'              // Your DockerHub repo
-        TAG = "latest"                                  // Can be dynamic with env.BUILD_NUMBER or Git commit hash
-        CONTAINER_NAME = 'todo-flask-container'
+        IMAGE_NAME = 'harshrawte/todo-list'
+        IMAGE_TAG = 'latest'
+        DOCKER_HUB_CREDENTIALS = 'docker-hub-creds' // ID of credentials in Jenkins
     }
 
     stages {
-
         stage('Clone Repository') {
             steps {
                 echo '🔄 Cloning repo...'
-                git branch: 'main', url: 'https://github.com/harshhrawte/To-Do-List.git'
+                git 'https://github.com/harshhrawte/To-Do-List.git'
             }
         }
 
         stage('Build Docker Image') {
             steps {
                 echo '🐳 Building Docker image...'
-                sh 'docker build -t $IMAGE_NAME:$TAG .'
+                bat 'docker build -t %IMAGE_NAME%:%IMAGE_TAG% .'
             }
         }
 
         stage('Push to Docker Hub') {
             steps {
-                echo '📤 Logging in and pushing to DockerHub...'
-                withCredentials([usernamePassword(credentialsId: "${DOCKERHUB_CREDENTIALS}", usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
-                    sh '''
-                        echo "$PASSWORD" | docker login -u "$USERNAME" --password-stdin
-                        docker push $IMAGE_NAME:$TAG
+                echo '📤 Pushing image to Docker Hub...'
+                withCredentials([usernamePassword(credentialsId: "${DOCKER_HUB_CREDENTIALS}", passwordVariable: 'DOCKER_PASSWORD', usernameVariable: 'DOCKER_USERNAME')]) {
+                    bat '''
+                    docker login -u %DOCKER_USERNAME% -p %DOCKER_PASSWORD%
+                    docker push %IMAGE_NAME%:%IMAGE_TAG%
                     '''
                 }
             }
@@ -38,19 +36,17 @@ pipeline {
 
         stage('Deploy on Docker Host') {
             steps {
-                echo '🚀 Deploying container on Docker Host...'
-                sh '''
-                    docker rm -f $CONTAINER_NAME || true
-                    docker run -d -p 5000:5000 --name $CONTAINER_NAME $IMAGE_NAME:$TAG
+                echo '🚀 Deploying Docker container...'
+                bat '''
+                docker stop todo-app || echo "Container not running"
+                docker rm todo-app || echo "Container not existing"
+                docker run -d -p 5000:5000 --name todo-app %IMAGE_NAME%:%IMAGE_TAG%
                 '''
             }
         }
     }
 
     post {
-        success {
-            echo '✅ Deployment successful!'
-        }
         failure {
             echo '❌ Something went wrong. Check logs.'
         }
