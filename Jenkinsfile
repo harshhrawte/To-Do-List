@@ -9,9 +9,9 @@ pipeline {
     stages {
         stage('Clone Repository') {
             steps {
-                echo '🔄 Cloning repo...'
+                echo '🔄 Cloning test branch...'
                 withCredentials([usernamePassword(credentialsId: 'github-credentials-id', usernameVariable: 'GIT_USER', passwordVariable: 'GIT_PASS')]) {
-                    git branch: 'main', url: 'https://github.com/harshhrawte/To-Do-List.git', credentialsId: 'github-credentials-id'
+                    git branch: 'test', url: 'https://github.com/harshhrawte/To-Do-List.git', credentialsId: 'github-credentials-id'
                 }
             }
         }
@@ -20,7 +20,7 @@ pipeline {
             steps {
                 echo '🐳 Building Docker image...'
                 script {
-                    bat "docker build -t %IMAGE_NAME%:%IMAGE_TAG% ."
+                    bat 'docker build -t %IMAGE_NAME%:%IMAGE_TAG% .'
                 }
             }
         }
@@ -29,34 +29,7 @@ pipeline {
             steps {
                 echo '📦 Saving Docker image to todo-list.tar...'
                 script {
-                    bat "docker save -o todo-list.tar %IMAGE_NAME%:%IMAGE_TAG%"
-                }
-            }
-        }
-
-        stage('Run Container with docker-compose') {
-            steps {
-                echo '🚀 Running container using docker-compose...'
-                script {
-                    bat "docker-compose up -d"
-                }
-            }
-        }
-
-        stage('Verify Container Running') {
-            steps {
-                echo '🔍 Checking running containers...'
-                script {
-                    bat "docker ps"
-                }
-            }
-        }
-
-        stage('Stop Container') {
-            steps {
-                echo '🛑 Stopping container...'
-                script {
-                    bat "docker-compose down"
+                    bat 'docker save -o todo-list.tar %IMAGE_NAME%:%IMAGE_TAG%'
                 }
             }
         }
@@ -67,7 +40,7 @@ pipeline {
             echo "❌ Something went wrong. Check logs."
         }
         success {
-            echo "✅ Pipeline completed successfully!"
+            echo "✅ Pipeline for TEST branch completed successfully!"
         }
     }
 }
