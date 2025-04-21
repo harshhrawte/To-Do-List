@@ -16,22 +16,23 @@ pipeline {
         }
 
         stage('Build Docker Image') {
-            steps {
-                echo '🐳 Building Docker image...'
-                script {
-                    sh 'docker build -t $IMAGE_NAME:$IMAGE_TAG .'
-                }
-            }
+    steps {
+        echo '🐳 Building Docker image...'
+        script {
+            bat 'docker build -t %IMAGE_NAME%:%IMAGE_TAG% .'
         }
+    }
+}
 
-        stage('Save Docker Image as .tar') {
-            steps {
-                echo '📦 Saving Docker image to todo-list.tar...'
-                script {
-                    sh 'docker save -o todo-list.tar $IMAGE_NAME:$IMAGE_TAG'
-                }
-            }
+stage('Save Docker Image as .tar') {
+    steps {
+        echo '📦 Saving Docker image to todo-list.tar...'
+        script {
+            bat 'docker save -o todo-list.tar %IMAGE_NAME%:%IMAGE_TAG%'
         }
+    }
+}
+
     }
 
     post {
