@@ -3,44 +3,66 @@ pipeline {
 
     environment {
         IMAGE_NAME = "harshrawte/todo-list-app"
-        IMAGE_TAG = "v1"
+        IMAGE_TAG = "v2"
+        CONTAINER_NAME = "devops-prac"
     }
 
     stages {
         stage('Clone Repository') {
             steps {
-                echo '🔄 Cloning test branch...'
-                withCredentials([usernamePassword(credentialsId: 'github-credentials-id', usernameVariable: 'GIT_USER', passwordVariable: 'GIT_PASS')]) {
-                    git branch: 'test', url: 'https://github.com/harshhrawte/To-Do-List.git', credentialsId: 'github-credentials-id'
-                }
+                echo '🔄 Cloning repo from test branch...'
+                git branch: 'test', url: 'https://github.com/harshhrawte/To-Do-List.git'
             }
         }
 
         stage('Build Docker Image') {
             steps {
-                echo '🐳 Building Docker image...'
+                echo '🐳 Building new Docker image with latest code...'
                 script {
-                    bat 'docker build -t %IMAGE_NAME%:%IMAGE_TAG% .'
+                    sh "docker build -t ${IMAGE_NAME}:${IMAGE_TAG} ."
                 }
             }
         }
 
-        stage('Save Docker Image as .tar') {
+        stage('Stop & Remove Old Container') {
             steps {
-                echo '📦 Saving Docker image to todo-list.tar...'
+                echo '🛑 Stopping and removing old container (if exists)...'
                 script {
-                    bat 'docker save -o todo-list.tar %IMAGE_NAME%:%IMAGE_TAG%'
+                    sh """
+                    docker stop ${CONTAINER_NAME} || true
+                    docker rm ${CONTAINER_NAME} || true
+                    """
+                }
+            }
+        }
+
+        stage('Run New Container') {
+            steps {
+                echo '🚀 Running new container with updated image...'
+                script {
+                    sh """
+                    docker run -d --name ${CONTAINER_NAME} -p 5000:5000 ${IMAGE_NAME}:${IMAGE_TAG}
+                    """
+                }
+            }
+        }
+
+        stage('Save Docker Image') {
+            steps {
+                echo '💾 Saving image as todo-list.tar...'
+                script {
+                    sh "docker save -o todo-list.tar ${IMAGE_NAME}:${IMAGE_TAG}"
                 }
             }
         }
     }
 
     post {
-        failure {
-            echo "❌ Something went wrong. Check logs."
-        }
         success {
-            echo "✅ Pipeline for TEST branch completed successfully!"
+            echo "✅ All done! App is live at http://localhost:5000"
+        }
+        failure {
+            echo "❌ Pipeline failed. Check logs!"
         }
     }
 }
